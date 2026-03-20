@@ -78,7 +78,13 @@
   .daily-bar { height:100%; background:var(--orange); transition:width 0.3s; width:0%; }
   .daily-sub { font-size:12px; color:var(--muted); margin-top:6px; }
   .start-cycle-btn { display:block; width:100%; margin-top:3px; padding:14px; background:rgba(232,255,71,0.06); border:1px solid rgba(232,255,71,0.2); color:var(--accent); font-family:'Barlow Condensed',sans-serif; font-size:12px; letter-spacing:3px; text-transform:uppercase; cursor:pointer; transition:all 0.2s; }
-  .start-cycle-btn:active { background:rgba(232,255,71,0.12); }
+  .skip-btn {
+    display:block; width:100%; margin-top:3px; padding:14px;
+    background:rgba(71,200,255,0.06); border:1px solid rgba(71,200,255,0.25);
+    color:var(--pull); font-family:'Barlow Condensed',sans-serif;
+    font-size:12px; letter-spacing:3px; text-transform:uppercase; cursor:pointer; transition:all 0.2s;
+  }
+  .skip-btn:active { background:rgba(71,200,255,0.12); }
 
   /* PROGRAMME */
   .days-grid { display:flex; flex-direction:column; gap:2px; }
@@ -389,6 +395,7 @@
     </div>
 
     <button class="start-cycle-btn" id="startCycleBtn">⟳ Démarrer un nouveau cycle aujourd'hui</button>
+    <button class="skip-btn" id="skipBtn" style="display:none">⏭ Passer à la prochaine séance</button>
     <button class="reset-btn" id="resetAll" style="margin-top:3px;border-color:#ff4747;color:#ff4747">✕ Tout remettre à zéro</button>
   </div>
 </div>
@@ -493,6 +500,32 @@
     <button class="reset-btn" onclick="document.getElementById('importFile').click()" style="margin-bottom:3px;border-color:var(--green);color:var(--green)">📂 Restaurer mes données</button>
 
     <button class="reset-btn" id="resetStats" style="margin-top:12px;border-color:#ff4747;color:#ff4747">✕ Remettre toutes les stats à zéro</button>
+  </div>
+</div>
+
+<!-- ══ MODALE SKIP ══ -->
+<div class="modal-overlay" id="modalSkipOverlay">
+  <div class="modal-box">
+    <div class="modal-icon">😤</div>
+    <div class="modal-title" id="modalSkipTitle">Ah ouais t'es une zemel ?</div>
+    <div class="modal-sub" id="modalSkipSub">Tu skip une séance ? Bali va pas se payer tout seul frérot.</div>
+    <div class="modal-btns">
+      <button class="modal-btn cancel" id="modalSkipCancel">J'y retourne</button>
+      <button class="modal-btn confirm" id="modalSkipConfirm">On skip</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODALE RESTART CYCLE ══ -->
+<div class="modal-overlay" id="modalCycleOverlay">
+  <div class="modal-box">
+    <div class="modal-icon">🔄</div>
+    <div class="modal-title">Redémarrer le cycle ?</div>
+    <div class="modal-sub">Un cycle est déjà en cours. Redémarrer remet tous les exercices à zéro et reprend depuis J1 aujourd'hui.</div>
+    <div class="modal-btns">
+      <button class="modal-btn cancel" id="modalCycleCancel">Annuler</button>
+      <button class="modal-btn confirm" id="modalCycleConfirm">Oui, redémarrer</button>
+    </div>
   </div>
 </div>
 
@@ -1022,6 +1055,11 @@ function updateHome(){
   // Cycle dots
   const cur=getCurDayIdx();
   setTxt('cyclePctLabel', cur>=0?'J'+(cur+1):'Non démarré');
+  // Texte bouton cycle dynamique
+  const btn=document.getElementById('startCycleBtn');
+  if(btn) btn.textContent = cycleStart ? '⟳ Redémarrer le cycle depuis aujourd\'hui' : '⟳ Démarrer un nouveau cycle aujourd\'hui';
+  const skipBtn=document.getElementById('skipBtn');
+  if(skipBtn) skipBtn.style.display = cycleStart ? 'block' : 'none';
   const dotsEl=document.getElementById('cycleDots');
   if(dotsEl){
     dotsEl.innerHTML='';
@@ -1044,11 +1082,66 @@ function updateHome(){
   setTxt('nextMeta', 'Jour '+nd.num+' · '+nd.weekday+' · ⏱ '+nd.duration+' · ⚡ '+nd.intensity);
 }
 
-document.getElementById('startCycleBtn').addEventListener('click',()=>{
-  cycleStart=todayStr();
-  store.set('cycleStart',cycleStart);
+const skipMessages = [
+  { title:"Ah ouais t'es une zemel ?",   sub:"Tu skip une séance ? Bali va pas se payer tout seul frérot." },
+  { title:"Sérieusement ?",              sub:"T'as même pas essayé. Le futur Thomas est déçu." },
+  { title:"Une zemel de compét",         sub:"Même les jours de flemme on se présente. Mais bon..." },
+  { title:"Ok le champion",              sub:"Discipline > motivation tu disais. Apparemment non." },
+  { title:"Noted.",                      sub:"Séance skippée. La routine elle, elle skip pas." },
+];
+
+document.getElementById('skipBtn').addEventListener('click',()=>{
+  if(!cycleStart) return;
+  const msg = skipMessages[Math.floor(Math.random()*skipMessages.length)];
+  document.getElementById('modalSkipTitle').textContent = msg.title;
+  document.getElementById('modalSkipSub').textContent = msg.sub;
+  document.getElementById('modalSkipOverlay').classList.add('show');
+});
+
+document.getElementById('modalSkipCancel').addEventListener('click',()=>{
+  document.getElementById('modalSkipOverlay').classList.remove('show');
+});
+
+document.getElementById('modalSkipConfirm').addEventListener('click',()=>{
+  document.getElementById('modalSkipOverlay').classList.remove('show');
+  const d = new Date(cycleStart);
+  d.setDate(d.getDate() - 1);
+  cycleStart = d.toISOString().slice(0,10);
+  store.set('cycleStart', cycleStart);
   refreshCurDay();
   updateHome();
+});
+
+function doStartCycle(){
+  cycleStart=todayStr();
+  progState={};
+  store.set('cycleStart',cycleStart);
+  store.set('progState',progState);
+  document.querySelectorAll('.ex-row.done').forEach(r=>r.classList.remove('done'));
+  days.forEach((_,i)=>{
+    document.getElementById('ring-'+i).style.strokeDashoffset=CIRC;
+    document.getElementById('rnum-'+i).textContent=String(i+1).padStart(2,'0');
+  });
+  document.querySelectorAll('.day-card.open').forEach(c=>c.classList.remove('open'));
+  refreshCurDay();
+  updateHome();
+}
+
+document.getElementById('startCycleBtn').addEventListener('click',()=>{
+  if(cycleStart){
+    // Cycle déjà en cours → modale de confirmation
+    document.getElementById('modalCycleOverlay').classList.add('show');
+  } else {
+    doStartCycle();
+  }
+});
+
+document.getElementById('modalCycleCancel').addEventListener('click',()=>{
+  document.getElementById('modalCycleOverlay').classList.remove('show');
+});
+document.getElementById('modalCycleConfirm').addEventListener('click',()=>{
+  document.getElementById('modalCycleOverlay').classList.remove('show');
+  doStartCycle();
 });
 
 document.getElementById('resetStats').addEventListener('click',()=>{
