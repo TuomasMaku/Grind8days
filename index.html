@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Training App</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;700;900&family=Barlow:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --card: #111;
+    --border: #1e1e1e;
+    --accent: #e8ff47;
+    --text: #f0f0f0;
+    --muted: #555;
+    --push: #ff6b35;
+    --pull: #47c8ff;
+    --cardio: #a8ff78;
+    --legs: #e8ff47;
+    --run: #ff47a3;
+    --rest: #888;
+    --green: #a8ff78;
+    --blue: #47c8ff;
+    --orange: #ff6b35;
+    --pink: #ff47a3;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Barlow', sans-serif;
+    min-height: 100vh;
+    padding-bottom: 70px;
+  }
+
+  /* ── TABS ── */
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* ── BOTTOM NAV ── */
+  .bottom-nav {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 60px;
+    background: #0d0d0d;
+    border-top: 1px solid var(--border);
+    display: flex;
+    z-index: 100;
+  }
+
+  .nav-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--muted);
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    transition: color 0.2s;
+    position: relative;
+  }
+
+  .nav-btn.active { color: var(--accent); }
+
+  .nav-btn::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 20%; right: 20%;
+    height: 2px;
+    background: var(--accent);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .nav-btn.active::before { opacity: 1; }
+
+  .nav-icon { font-size: 20px; }
+
+  /* ── SHARED ── */
+  .page {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 32px 16px 24px;
+  }
+
+  header { margin-bottom: 28px; }
+
+  .header-label {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 11px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  h1 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 60px;
+    font-weight: 900;
+    line-height: 0.85;
+    text-transform: uppercase;
+  }
+
+  h1 span { color: var(--accent); display: block; }
+
+  .header-sub {
+    margin-top: 12px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .stats-bar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 2px;
+    margin-bottom: 24px;
+    background: var(--border);
+  }
+
+  .stat { background: var(--card); padding: 12px 6px; text-align: center; }
+
+  .stat-num {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--accent);
+    line-height: 1;
+  }
+
+  .stat-label {
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-top: 3px;
+  }
+
+  .reset-btn {
+    display: block;
+    width: 100%;
+    margin-top: 20px;
+    padding: 15px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 13px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .reset-btn:active { background: var(--card); color: var(--text); }
+
+  /* ── PROGRAMME ── */
+  .days-grid { display: flex; flex-direction: column; gap: 2px; }
+
+  .day-card {
+    background: var(--card);
+    border-left: 3px solid var(--muted);
+    overflow: hidden;
+    animation: fadeUp 0.4s ease both;
+  }
+
+  .day-card[data-type="push"]   { border-left-color: var(--push); }
+  .day-card[data-type="pull"]   { border-left-color: var(--pull); }
+  .day-card[data-type="cardio"] { border-left-color: var(--cardio); }
+  .day-card[data-type="legs"]   { border-left-color: var(--legs); }
+  .day-card[data-type="run"]    { border-left-color: var(--run); }
+  .day-card[data-type="rest"]   { border-left-color: var(--rest); }
+
+  .day-header {
+    display: flex;
+    align-items: center;
+    padding: 14px 14px 14px 12px;
+    gap: 12px;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .day-badge {
+    flex-shrink: 0;
+    width: 56px;
+    text-align: center;
+    border-right: 1px solid var(--border);
+    padding-right: 12px;
+  }
+
+  .day-badge .lbl {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .day-badge .wd {
+    font-size: 9px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 1px;
+  }
+
+  /* Ring dans badge */
+  .ring-wrap {
+    position: relative;
+    width: 44px;
+    height: 44px;
+    margin: 2px auto;
+  }
+
+  .ring-wrap svg { transform: rotate(-90deg); }
+  .ring-bg { fill: none; stroke: var(--border); stroke-width: 4; }
+  .ring-fill {
+    fill: none;
+    stroke-width: 4;
+    stroke-linecap: round;
+    stroke-dasharray: 113;
+    stroke-dashoffset: 113;
+    transition: stroke-dashoffset 0.4s ease;
+  }
+
+  .day-card[data-type="push"]   .ring-fill { stroke: var(--push); }
+  .day-card[data-type="pull"]   .ring-fill { stroke: var(--pull); }
+  .day-card[data-type="cardio"] .ring-fill { stroke: var(--cardio); }
+  .day-card[data-type="legs"]   .ring-fill { stroke: var(--legs); }
+  .day-card[data-type="run"]    .ring-fill { stroke: var(--run); }
+  .day-card[data-type="rest"]   .ring-fill { stroke: var(--rest); }
+
+  .ring-num {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 13px;
+    font-weight: 900;
+    color: var(--text);
+  }
+
+  .day-info { flex: 1; min-width: 0; }
+
+  .day-tags {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+  }
+
+  .tag {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    padding: 2px 7px;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .day-card[data-type="push"]   .tag-primary { background: var(--push);   color: #000; }
+  .day-card[data-type="pull"]   .tag-primary { background: var(--pull);   color: #000; }
+  .day-card[data-type="cardio"] .tag-primary { background: var(--cardio); color: #000; }
+  .day-card[data-type="legs"]   .tag-primary { background: var(--legs);   color: #000; }
+  .day-card[data-type="run"]    .tag-primary { background: var(--run);    color: #000; }
+  .day-card[data-type="rest"]   .tag-primary { background: var(--rest);   color: #000; }
+
+  .tag-secondary { border: 1px solid var(--border); color: var(--muted); background: transparent; }
+
+  .day-title-text {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 21px;
+    font-weight: 700;
+    text-transform: uppercase;
+    line-height: 1;
+  }
+
+  .day-meta-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 5px;
+    flex-wrap: wrap;
+  }
+
+  .meta-item { font-size: 11px; color: var(--muted); white-space: nowrap; }
+
+  .chevron {
+    font-size: 20px;
+    color: var(--muted);
+    flex-shrink: 0;
+    transition: transform 0.25s ease;
+  }
+
+  .day-card.open .chevron { transform: rotate(180deg); }
+
+  .day-detail {
+    display: none;
+    padding: 4px 16px 20px;
+    border-top: 1px solid var(--border);
+  }
+
+  .day-card.open .day-detail { display: block; }
+
+  .detail-section { margin-top: 18px; }
+
+  .detail-section h3 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 10px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 2px;
+  }
+
+  .ex-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 11px 8px;
+    border-bottom: 1px solid #181818;
+    gap: 16px;
+    cursor: pointer;
+    transition: background 0.15s, opacity 0.2s;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .ex-row:last-child { border-bottom: none; }
+  .ex-row:active { background: #1a1a1a; }
+
+  .ex-row.done { opacity: 0.35; }
+  .ex-row.done .ex-name { text-decoration: line-through; text-decoration-color: var(--muted); }
+  .ex-row.done .ex-check { opacity: 1; }
+
+  .ex-name { font-size: 14px; font-weight: 400; line-height: 1.3; flex: 1; min-width: 0; }
+
+  .ex-sets {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 17px;
+    font-weight: 700;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .day-card[data-type="push"]   .ex-sets { color: var(--push); }
+  .day-card[data-type="pull"]   .ex-sets { color: var(--pull); }
+  .day-card[data-type="cardio"] .ex-sets { color: var(--cardio); }
+  .day-card[data-type="legs"]   .ex-sets { color: var(--legs); }
+  .day-card[data-type="run"]    .ex-sets { color: var(--run); }
+  .day-card[data-type="rest"]   .ex-sets { color: var(--rest); }
+
+  .ex-check {
+    font-size: 14px;
+    color: var(--accent);
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.2s;
+    margin-left: 2px;
+  }
+
+  .note-box {
+    margin-top: 14px;
+    padding: 12px 14px;
+    background: #0d0d0d;
+    border-left: 2px solid var(--border);
+    font-size: 13px;
+    color: var(--muted);
+    font-style: italic;
+    line-height: 1.6;
+  }
+
+  .bottom-note {
+    margin-top: 20px;
+    padding: 16px;
+    background: var(--card);
+    border-left: 3px solid var(--accent);
+  }
+
+  .bottom-note p { font-size: 13px; color: var(--muted); line-height: 1.8; }
+  .bottom-note strong { color: var(--accent); font-weight: 500; }
+
+  /* ── DÉFI ── */
+  .progress-section {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    background: var(--card);
+    padding: 20px;
+    margin-bottom: 16px;
+    border-left: 3px solid var(--accent);
+  }
+
+  .global-ring-wrap { position: relative; width: 72px; height: 72px; flex-shrink: 0; }
+  .global-ring-wrap svg { transform: rotate(-90deg); }
+  .g-ring-bg { fill: none; stroke: var(--border); stroke-width: 5; }
+  .g-ring-fill {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 5;
+    stroke-linecap: round;
+    stroke-dasharray: 188;
+    stroke-dashoffset: 188;
+    transition: stroke-dashoffset 0.4s ease;
+  }
+
+  .ring-text {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 18px;
+    font-weight: 900;
+    color: var(--accent);
+  }
+
+  .progress-info { flex: 1; }
+
+  .done-count {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 42px;
+    font-weight: 900;
+    line-height: 1;
+    color: var(--text);
+  }
+
+  .done-count span { font-size: 22px; color: var(--muted); }
+  .done-label { font-size: 12px; color: var(--muted); letter-spacing: 1px; margin-top: 2px; }
+
+  .challenges { display: flex; flex-direction: column; gap: 3px; }
+
+  .challenge-card {
+    background: var(--card);
+    border-left: 3px solid var(--accent);
+    padding: 18px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .challenge-card[data-color="orange"] { border-left-color: var(--orange); }
+  .challenge-card[data-color="blue"]   { border-left-color: var(--blue); }
+  .challenge-card[data-color="green"]  { border-left-color: var(--green); }
+  .challenge-card[data-color="pink"]   { border-left-color: var(--pink); }
+  .challenge-card[data-color="accent"] { border-left-color: var(--accent); }
+
+  .challenge-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: var(--fill, 0%);
+    background: rgba(255,255,255,0.02);
+    transition: width 0.3s ease;
+    pointer-events: none;
+  }
+
+  .ch-icon { font-size: 26px; flex-shrink: 0; }
+  .ch-body { flex: 1; min-width: 0; }
+  .ch-name { font-size: 16px; font-weight: 500; }
+  .ch-detail { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  .ch-bar-wrap { margin-top: 8px; height: 2px; background: var(--border); }
+  .ch-bar { height: 100%; transition: width 0.3s ease; width: 0%; }
+
+  .challenge-card[data-color="orange"] .ch-bar { background: var(--orange); }
+  .challenge-card[data-color="blue"]   .ch-bar { background: var(--blue); }
+  .challenge-card[data-color="green"]  .ch-bar { background: var(--green); }
+  .challenge-card[data-color="pink"]   .ch-bar { background: var(--pink); }
+  .challenge-card[data-color="accent"] .ch-bar { background: var(--accent); }
+
+  .ch-right { flex-shrink: 0; text-align: right; }
+
+  .ch-count {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 32px;
+    font-weight: 900;
+    line-height: 1;
+  }
+
+  .challenge-card[data-color="orange"] .ch-count { color: var(--orange); }
+  .challenge-card[data-color="blue"]   .ch-count { color: var(--blue); }
+  .challenge-card[data-color="green"]  .ch-count { color: var(--green); }
+  .challenge-card[data-color="pink"]   .ch-count { color: var(--pink); }
+  .challenge-card[data-color="accent"] .ch-count { color: var(--accent); }
+
+  .ch-target { font-size: 11px; color: var(--muted); margin-top: 1px; }
+
+  .done-badge {
+    display: none;
+    position: absolute;
+    top: 10px; right: 12px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: rgba(232,255,71,0.08);
+    padding: 2px 8px;
+  }
+
+  .challenge-card.completed .done-badge { display: block; }
+  .challenge-card.completed { opacity: 0.5; }
+
+  .ch-btns { display: flex; gap: 2px; margin-top: 3px; }
+
+  .ch-btn {
+    flex: 1;
+    padding: 10px 0;
+    border: none;
+    background: #1a1a1a;
+    color: var(--muted);
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .ch-btn:active { background: #252525; }
+  .ch-btn.primary { background: #1c1c14; color: var(--accent); font-size: 18px; }
+  .ch-btn.primary:active { background: #252510; }
+  .ch-btn.minus { color: #333; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes pop {
+    0%   { transform: scale(1); }
+    40%  { transform: scale(1.15); }
+    100% { transform: scale(1); }
+  }
+
+  .pop { animation: pop 0.25s ease; }
+</style>
+</head>
+<body>
+
+<!-- ══════════ ONGLET PROGRAMME ══════════ -->
+<div class="tab-content active" id="tab-programme">
+  <div class="page">
+    <header>
+      <div class="header-label">Cycle d'entraînement</div>
+      <h1>Programme<span>8 Jours</span></h1>
+      <div class="header-sub">PPL · Cardio · Endurance — Cycle complet</div>
+    </header>
+
+    <div class="stats-bar">
+      <div class="stat"><div class="stat-num">8</div><div class="stat-label">Jours</div></div>
+      <div class="stat"><div class="stat-num">7</div><div class="stat-label">Séances</div></div>
+      <div class="stat"><div class="stat-num">1</div><div class="stat-label">Repos</div></div>
+      <div class="stat"><div class="stat-num">~6H</div><div class="stat-label">Volume</div></div>
+    </div>
+
+    <div class="days-grid" id="daysGrid"></div>
+
+    <button class="reset-btn" id="resetProg">↺ Nouveau cycle — Réinitialiser</button>
+
+    <div class="bottom-note">
+      <p>
+        <strong>Tips cycle :</strong> Hydratation 2–3L/jour obligatoire sur les blocs legs + run long.
+        Les séances vélo servent de récupération active post-push/pull — garder intensité modérée Z2.
+        Sur le jour 3, le core est prioritaire. <strong>Jour 8 = sacré</strong>, étirements 15 min minimum.
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ ONGLET DÉFI ══════════ -->
+<div class="tab-content" id="tab-defi">
+  <div class="page">
+    <header>
+      <div class="header-label">Défi du jour</div>
+      <h1>Daily<span>Grind</span></h1>
+      <div class="header-sub">Fais-le quand tu veux — mais fais-le.</div>
+    </header>
+
+    <div class="progress-section">
+      <div class="global-ring-wrap">
+        <svg width="72" height="72" viewBox="0 0 72 72">
+          <circle class="g-ring-bg" cx="36" cy="36" r="30"/>
+          <circle class="g-ring-fill" id="ringFill" cx="36" cy="36" r="30"/>
+        </svg>
+        <div class="ring-text" id="ringPct">0%</div>
+      </div>
+      <div class="progress-info">
+        <div class="done-count"><span id="totalDone">0</span> <span>/ <span id="totalTarget">0</span></span></div>
+        <div class="done-label">reps complétées aujourd'hui</div>
+      </div>
+    </div>
+
+    <div class="challenges" id="challenges"></div>
+
+    <button class="reset-btn" id="resetDefi">↺ Réinitialiser la journée</button>
+  </div>
+</div>
+
+<!-- ══════════ NAV ══════════ -->
+<nav class="bottom-nav">
+  <button class="nav-btn active" id="btn-programme" onclick="switchTab('programme')">
+    <span class="nav-icon">📋</span>
+    Programme
+  </button>
+  <button class="nav-btn" id="btn-defi" onclick="switchTab('defi')">
+    <span class="nav-icon">🔥</span>
+    Défi Daily
+  </button>
+</nav>
+
+<script>
+/* ── TAB SWITCHING ── */
+function switchTab(name) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  document.getElementById('btn-' + name).classList.add('active');
+}
+
+/* ════════════════════════════════
+   PROGRAMME
+════════════════════════════════ */
+const days = [
+  {
+    num: 1, weekday: "Lundi", type: "push",
+    title: "Push", tags: ["Vélo"],
+    duration: "75 min", intensity: "Haute",
+    sections: [
+      { title: "Push — Haut du corps", exercises: [
+        { name: "Développé couché barre",      sets: "4 × 6–8" },
+        { name: "Développé incliné haltères",  sets: "3 × 10" },
+        { name: "Élévations latérales",        sets: "4 × 12–15" },
+        { name: "Développé militaire",         sets: "3 × 8–10" },
+        { name: "Pushdown triceps câble",      sets: "3 × 12" },
+        { name: "Dips lestés",                 sets: "3 × max" },
+      ]},
+      { title: "Cardio — Vélo", exercises: [
+        { name: "Échauffement",   sets: "5 min facile" },
+        { name: "Zone 2 continu", sets: "25–30 min" },
+        { name: "Récupération",   sets: "5 min" },
+      ]},
+    ],
+    note: "Le vélo post-push est récupération active. Pas d'intervalles — maintenir Z2 (conversation possible)."
+  },
+  {
+    num: 2, weekday: "Mardi", type: "pull",
+    title: "Pull", tags: ["Run"],
+    duration: "70 min", intensity: "Haute",
+    sections: [
+      { title: "Pull — Dos & Biceps", exercises: [
+        { name: "Tractions lestées",       sets: "4 × 6–8" },
+        { name: "Rowing barre",            sets: "4 × 8" },
+        { name: "Tirage poitrine câble",   sets: "3 × 10–12" },
+        { name: "Face pull",               sets: "3 × 15" },
+        { name: "Curl barre",              sets: "3 × 10" },
+        { name: "Curl marteau",            sets: "3 × 12" },
+      ]},
+      { title: "Run — 5 km", exercises: [
+        { name: "Échauffement marche",    sets: "3 min" },
+        { name: "Run pace modérée",       sets: "5 km" },
+        { name: "Cool-down + étirements", sets: "5 min" },
+      ]},
+    ],
+    note: "Run en fin de séance post-pull. Pace confortable, pas de performance. Axer sur les épaules sur le pull."
+  },
+  {
+    num: 3, weekday: "Mercredi", type: "cardio",
+    title: "Cardio léger", tags: ["Core"],
+    duration: "50 min", intensity: "Moyenne",
+    sections: [
+      { title: "Cardio léger — Récup active", exercises: [
+        { name: "Corde à sauter",            sets: "3 × 3 min" },
+        { name: "Escaliers / Stair climber", sets: "15 min Z2" },
+        { name: "SkiErg ou Rameur",          sets: "10 min Z2" },
+      ]},
+      { title: "Core — Gainage & Renforcement", exercises: [
+        { name: "Planche frontale",    sets: "4 × 45–60 sec" },
+        { name: "Planche latérale",    sets: "3 × 30 sec /côté" },
+        { name: "Ab wheel rollout",    sets: "3 × 10" },
+        { name: "Leg raises suspendu", sets: "3 × 12–15" },
+        { name: "Russian twist lesté", sets: "3 × 20" },
+      ]},
+    ],
+    note: "Journée de décharge. Intensité cardio basse — pulsations max 65% FC. Core prioritaire, bien contrôler chaque rep."
+  },
+  {
+    num: 4, weekday: "Jeudi", type: "legs",
+    title: "Jambes", tags: [],
+    duration: "80 min", intensity: "Très haute",
+    sections: [
+      { title: "Jambes — Force & Volume", exercises: [
+        { name: "Squat barre",              sets: "5 × 5" },
+        { name: "Leg press",                sets: "4 × 10–12" },
+        { name: "Romanian deadlift",        sets: "4 × 8–10" },
+        { name: "Fentes marchées haltères", sets: "3 × 10 /jambe" },
+        { name: "Leg curl allongé",         sets: "3 × 12" },
+        { name: "Mollets debout",           sets: "4 × 15–20" },
+      ]},
+    ],
+    note: "Séance la plus lourde du cycle. Bien s'échauffer — montée progressive 3 séries avant les 5×5. Pas de vélo ni run ce jour."
+  },
+  {
+    num: 5, weekday: "Vendredi", type: "push",
+    title: "Push", tags: ["Vélo"],
+    duration: "75 min", intensity: "Haute",
+    sections: [
+      { title: "Push — Variation", exercises: [
+        { name: "Développé couché haltères",  sets: "4 × 10" },
+        { name: "Écarté câble incliné",       sets: "3 × 12" },
+        { name: "Développé Arnold",           sets: "4 × 10" },
+        { name: "Élévations frontales",       sets: "3 × 12" },
+        { name: "Extension triceps overhead", sets: "3 × 12" },
+        { name: "Pompes lestées",             sets: "3 × max" },
+      ]},
+      { title: "Cardio — Vélo", exercises: [
+        { name: "Zone 2 continu", sets: "30 min" },
+      ]},
+    ],
+    note: "Push en variation du J1 : préférer haltères pour amplitude. Vélo post-séance même protocole Z2."
+  },
+  {
+    num: 6, weekday: "Samedi", type: "pull",
+    title: "Pull", tags: ["Vélo"],
+    duration: "70 min", intensity: "Haute",
+    sections: [
+      { title: "Pull — Variation", exercises: [
+        { name: "Tractions prise neutre",      sets: "4 × 8" },
+        { name: "Rowing unilatéral haltère",   sets: "4 × 10/côté" },
+        { name: "Tirage horizontal câble",     sets: "3 × 12" },
+        { name: "Shrugs haltères",             sets: "3 × 15" },
+        { name: "Curl incliné haltères",       sets: "3 × 12" },
+        { name: "Curl concentré",              sets: "3 × 12" },
+      ]},
+      { title: "Cardio — Vélo", exercises: [
+        { name: "Zone 2 continu", sets: "25 min" },
+      ]},
+    ],
+    note: "Troisième séance muscu du cycle. Gérer la fatigue accumulée. Pull en variation, vélo facultatif si jambes lourdes post-J4."
+  },
+  {
+    num: 7, weekday: "Dimanche", type: "run",
+    title: "Run long", tags: [],
+    duration: "60–75 min", intensity: "Moyenne",
+    sections: [
+      { title: "Endurance — Run long", exercises: [
+        { name: "Échauffement marche/trot", sets: "5 min" },
+        { name: "Run continu Z2",           sets: "45–60 min" },
+        { name: "Cool-down marche",         sets: "5 min" },
+        { name: "Étirements dynamiques",    sets: "10 min" },
+      ]},
+    ],
+    note: "Allure conversationnelle — jamais essoufflé. Distance secondaire, durée principale. Bon test cardio base aérobie."
+  },
+  {
+    num: 8, weekday: "Lundi", type: "rest",
+    title: "Repos complet", tags: ["Étirements"],
+    duration: "20–30 min", intensity: "Faible",
+    sections: [
+      { title: "Récupération — Mobilité", exercises: [
+        { name: "Hip flexors / pigeon",       sets: "2 min /côté" },
+        { name: "Ischio debout",              sets: "2 min /jambe" },
+        { name: "Thoracique foam roller",     sets: "5 min" },
+        { name: "Pecs contre mur",            sets: "2 × 60 sec" },
+        { name: "Rotation cervicales lentes", sets: "2 min" },
+      ]},
+    ],
+    note: "Journée sacrée. Zéro intensité, zéro ego. Qualité de récupération = qualité du prochain cycle. Sommeil prioritaire."
+  }
+];
+
+const grid = document.getElementById('daysGrid');
+const CIRC = 113;
+
+days.forEach((day, i) => {
+  const card = document.createElement('div');
+  card.className = 'day-card';
+  card.dataset.type = day.type;
+  card.style.animationDelay = `${i * 0.05 + 0.1}s`;
+
+  const totalExos = day.sections.reduce((a, s) => a + s.exercises.length, 0);
+
+  const secondaryTags = day.tags.map(t =>
+    `<span class="tag tag-secondary">${t}</span>`
+  ).join('');
+
+  const sectionsHTML = day.sections.map(sec => `
+    <div class="detail-section">
+      <h3>${sec.title}</h3>
+      ${sec.exercises.map(ex => `
+        <div class="ex-row">
+          <span class="ex-name">${ex.name}</span>
+          <span class="ex-sets">${ex.sets}</span>
+          <span class="ex-check">✓</span>
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+
+  card.innerHTML = `
+    <div class="day-header">
+      <div class="day-badge">
+        <div class="lbl">Jour</div>
+        <div class="ring-wrap">
+          <svg width="44" height="44" viewBox="0 0 44 44">
+            <circle class="ring-bg" cx="22" cy="22" r="18"/>
+            <circle class="ring-fill" id="ring-${i}" cx="22" cy="22" r="18" style="stroke-dashoffset:${CIRC}"/>
+          </svg>
+          <div class="ring-num" id="ringnum-${i}">${String(day.num).padStart(2,'0')}</div>
+        </div>
+        <div class="wd">${day.weekday}</div>
+      </div>
+      <div class="day-info">
+        <div class="day-tags">
+          <span class="tag tag-primary">${day.type.toUpperCase()}</span>
+          ${secondaryTags}
+        </div>
+        <div class="day-title-text">${day.title}</div>
+        <div class="day-meta-row">
+          <span class="meta-item">⏱ ${day.duration}</span>
+          <span class="meta-item">⚡ ${day.intensity}</span>
+        </div>
+      </div>
+      <div class="chevron">▾</div>
+    </div>
+    <div class="day-detail">
+      ${sectionsHTML}
+      <div class="note-box">${day.note}</div>
+    </div>
+  `;
+
+  card.querySelector('.day-header').addEventListener('click', () => {
+    const isOpen = card.classList.contains('open');
+    document.querySelectorAll('.day-card.open').forEach(c => c.classList.remove('open'));
+    if (!isOpen) card.classList.add('open');
+  });
+
+  card.addEventListener('click', e => {
+    const row = e.target.closest('.ex-row');
+    if (!row) return;
+    e.stopPropagation();
+    row.classList.toggle('done');
+    const doneCount = card.querySelectorAll('.ex-row.done').length;
+    const offset = CIRC - CIRC * (doneCount / totalExos);
+    document.getElementById(`ring-${i}`).style.strokeDashoffset = offset;
+    document.getElementById(`ringnum-${i}`).textContent =
+      doneCount === totalExos ? '✓' : String(day.num).padStart(2, '0');
+  });
+
+  grid.appendChild(card);
+});
+
+document.getElementById('resetProg').addEventListener('click', () => {
+  if (!confirm('Réinitialiser le cycle complet ?')) return;
+  document.querySelectorAll('.ex-row.done').forEach(r => r.classList.remove('done'));
+  days.forEach((_, i) => {
+    const ring = document.getElementById(`ring-${i}`);
+    const ringNum = document.getElementById(`ringnum-${i}`);
+    if (ring) ring.style.strokeDashoffset = CIRC;
+    if (ringNum) ringNum.textContent = String(i + 1).padStart(2, '0');
+  });
+  document.querySelectorAll('.day-card.open').forEach(c => c.classList.remove('open'));
+});
+
+/* ════════════════════════════════
+   DÉFI DAILY
+════════════════════════════════ */
+const challenges = [
+  { icon: "💪", name: "Pompes",        detail: "Prise large — poitrine au sol",         target: 100, step: 10, color: "orange" },
+  { icon: "🦵", name: "Squats",        detail: "Sous les 90°, talon au sol, tempo lent", target: 100, step: 10, color: "accent" },
+  { icon: "🔥", name: "Fentes",        detail: "Alternées — genou arrière proche du sol", target: 60,  step: 10, color: "green"  },
+  { icon: "⚡", name: "Abdos",         detail: "Crunchs ou relevé de jambes",             target: 60,  step: 10, color: "blue"   },
+  { icon: "🎯", name: "Gainage (sec)", detail: "Planche — corps droit, respire",          target: 180, step: 30, color: "pink"   },
+];
+
+const totalTarget = challenges.reduce((a, c) => a + c.target, 0);
+document.getElementById('totalTarget').textContent = totalTarget;
+
+const state = challenges.map(() => ({ done: 0 }));
+
+function updateGlobal() {
+  const total = state.reduce((a, s) => a + s.done, 0);
+  const pct = Math.round((total / totalTarget) * 100);
+  document.getElementById('totalDone').textContent = total;
+  document.getElementById('ringPct').textContent = pct + '%';
+  document.getElementById('ringFill').style.strokeDashoffset = 188 - (188 * pct / 100);
+}
+
+const chContainer = document.getElementById('challenges');
+
+challenges.forEach((ch, i) => {
+  const card = document.createElement('div');
+  card.className = 'challenge-card';
+  card.dataset.color = ch.color;
+
+  card.innerHTML = `
+    <div class="ch-icon">${ch.icon}</div>
+    <div class="ch-body">
+      <div class="ch-name">${ch.name}</div>
+      <div class="ch-detail">${ch.detail}</div>
+      <div class="ch-bar-wrap"><div class="ch-bar" id="bar-${i}"></div></div>
+    </div>
+    <div class="ch-right">
+      <div class="ch-count" id="count-${i}">0</div>
+      <div class="ch-target">/ ${ch.target}${ch.name === 'Gainage (sec)' ? ' sec' : ' reps'}</div>
+    </div>
+    <div class="done-badge">✓ Done</div>
+  `;
+
+  const btns = document.createElement('div');
+  btns.className = 'ch-btns';
+
+  const minus = document.createElement('button');
+  minus.className = 'ch-btn minus';
+  minus.textContent = `−${ch.step}`;
+
+  const plus = document.createElement('button');
+  plus.className = 'ch-btn primary';
+  plus.textContent = `+${ch.step}`;
+
+  function updateCard() {
+    const s = state[i];
+    const pct = Math.min(s.done / ch.target * 100, 100);
+    document.getElementById(`count-${i}`).textContent = s.done;
+    document.getElementById(`bar-${i}`).style.width = pct + '%';
+    card.style.setProperty('--fill', pct + '%');
+    card.classList.toggle('completed', s.done >= ch.target);
+    updateGlobal();
+  }
+
+  plus.addEventListener('click', () => {
+    state[i].done = Math.min(state[i].done + ch.step, ch.target);
+    const el = document.getElementById(`count-${i}`);
+    el.classList.remove('pop');
+    void el.offsetWidth;
+    el.classList.add('pop');
+    updateCard();
+  });
+
+  minus.addEventListener('click', () => {
+    state[i].done = Math.max(state[i].done - ch.step, 0);
+    updateCard();
+  });
+
+  btns.appendChild(minus);
+  btns.appendChild(plus);
+  chContainer.appendChild(card);
+  chContainer.appendChild(btns);
+});
+
+document.getElementById('resetDefi').addEventListener('click', () => {
+  state.forEach(s => s.done = 0);
+  challenges.forEach((_, i) => {
+    document.getElementById(`count-${i}`).textContent = 0;
+    document.getElementById(`bar-${i}`).style.width = '0%';
+    chContainer.querySelectorAll('.challenge-card')[i].classList.remove('completed');
+    chContainer.querySelectorAll('.challenge-card')[i].style.setProperty('--fill', '0%');
+  });
+  updateGlobal();
+});
+
+updateGlobal();
+</script>
+</body>
+</html>
