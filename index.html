@@ -302,6 +302,26 @@
   .timer-btn.go:active { background:rgba(168,255,120,0.1); }
   .timer-btn.stop { border-color:#ff4747; color:#ff4747; }
 
+  /* ANIMATION COCHE */
+  @keyframes checkFlash {
+    0%   { background: rgba(168,255,120,0.18); }
+    100% { background: transparent; }
+  }
+  @keyframes uncheckFlash {
+    0%   { background: rgba(255,71,71,0.18); }
+    100% { background: transparent; }
+  }
+  @keyframes checkPop {
+    0%   { transform: scale(1); }
+    35%  { transform: scale(1.06); }
+    100% { transform: scale(1); }
+  }
+  .ex-row.just-checked {
+    animation: checkFlash 0.45s ease forwards, checkPop 0.25s ease;
+  }
+  .ex-row.just-unchecked {
+    animation: uncheckFlash 0.45s ease forwards, checkPop 0.2s ease;
+  }
   @keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
   @keyframes pulse  { 0%,100%{opacity:0.5} 50%{opacity:1} }
   @keyframes pop    { 0%{transform:scale(1)} 40%{transform:scale(1.15)} 100%{transform:scale(1)} }
@@ -571,7 +591,13 @@ const store = {
   set(k,v){ try{localStorage.setItem(k,JSON.stringify(v));}catch{} this._m[k]=v; }
 };
 
-const todayStr = () => new Date().toISOString().slice(0,10);
+const todayStr = () => {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+};
 const setTxt = (id,val) => { const el=document.getElementById(id); if(el) el.textContent=val; };
 const setHTML = (id,val) => { const el=document.getElementById(id); if(el) el.innerHTML=val; };
 const setW = (id,val) => { const el=document.getElementById(id); if(el) el.style.width=val; };
@@ -582,6 +608,7 @@ function switchTab(name){
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');
   document.getElementById('btn-'+name).classList.add('active');
+  store.set('lastTab', name);
   if(name==='home') updateHome();
   if(name==='stats') renderStats();
 }
@@ -685,6 +712,7 @@ const totalTarget = challenges.reduce((a,c)=>a+c.target,0);
 /* ── STATE ── */
 let progState  = store.get('progState', {});
 let cycleStart = store.get('cycleStart', null);
+let cycleOffset= store.get('cycleOffset', 0);
 let dailyState = store.get('dailyState', {date:'', reps:challenges.map(()=>0)});
 let streakData = store.get('streakData', {count:0, lastDate:'', best:0});
 let historyData= store.get('historyData', []);
@@ -726,8 +754,10 @@ function saveToHistory(){
 /* ── CURRENT DAY ── */
 function getCurDayIdx(){
   if(!cycleStart) return -1;
-  const diff = Math.floor((new Date(todayStr())-new Date(cycleStart))/86400000);
-  return diff<0?-1:diff%8;
+  const start = new Date(cycleStart);
+  const today = new Date(todayStr());
+  const diff = Math.floor((today - start) / 86400000) + cycleOffset;
+  return diff<0 ? -1 : diff%8;
 }
 
 /* ── BUILD PROGRAMME ── */
@@ -796,8 +826,16 @@ days.forEach((day,i)=>{
     const row=e.target.closest('.ex-row');
     if(!row) return;
     e.stopPropagation();
+    const wasDone = row.classList.contains('done');
     row.classList.toggle('done');
-    if(row.classList.contains('done')) progState[row.dataset.key]=true;
+    row.classList.remove('just-checked','just-unchecked');
+    void row.offsetWidth;
+    row.classList.add(wasDone ? 'just-unchecked' : 'just-checked');
+    row.addEventListener('animationend', ()=>{
+      row.classList.remove('just-checked','just-unchecked');
+    }, {once:true});
+    if(navigator.vibrate) navigator.vibrate(wasDone ? 20 : 40);
+    if(!wasDone) progState[row.dataset.key]=true;
     else delete progState[row.dataset.key];
     store.set('progState',progState);
     refreshRing(i,card,totalExos);
@@ -816,14 +854,28 @@ function refreshRing(i,card,totalExos){
 
 function refreshCurDay(){
   const cur=getCurDayIdx();
-  cardEls.forEach((c,i)=>c.classList.toggle('cur-day-card',i===cur));
+  cardEls.forEach((c,i)=>{
+    c.classList.toggle('cur-day-card',i===cur);
+    if(i!==cur) c.classList.remove('open');
+  });
+  if(cur>=0 && cardEls[cur]) cardEls[cur].classList.add('open');
+}
+
+function isCurrentWorkoutDone(){
+  const cur=getCurDayIdx();
+  if(cur<0||!cardEls[cur]) return false;
+  const rows=cardEls[cur].querySelectorAll('.ex-row');
+  if(!rows.length) return false;
+  return [...rows].every(r=>r.classList.contains('done'));
 }
 
 document.getElementById('resetProg').addEventListener('click',()=>{
   progState={};
   cycleStart=null;
+  cycleOffset=0;
   store.set('progState',progState);
   store.set('cycleStart',cycleStart);
+  store.set('cycleOffset',cycleOffset);
   document.querySelectorAll('.ex-row.done').forEach(r=>r.classList.remove('done'));
   days.forEach((_,i)=>{
     document.getElementById('ring-'+i).style.strokeDashoffset=CIRC;
@@ -1079,7 +1131,11 @@ function updateHome(){
   const nc=document.getElementById('nextCard');
   if(nc) nc.style.borderLeftColor=tc[nd.type]||'var(--muted)';
   setHTML('nextTitle', `<span style="background:${tc[nd.type]};color:#000;padding:2px 8px;font-size:12px">${nd.type.toUpperCase()}</span> ${nd.title}`);
-  setTxt('nextMeta', 'Jour '+nd.num+' · '+nd.weekday+' · ⏱ '+nd.duration+' · ⚡ '+nd.intensity);
+  const workoutDone = isCurrentWorkoutDone();
+  setTxt('nextMeta', workoutDone
+    ? '✅ Séance du jour terminée — bon boulot'
+    : 'Jour '+nd.num+' · '+nd.weekday+' · ⏱ '+nd.duration+' · ⚡ '+nd.intensity
+  );
 }
 
 const skipMessages = [
@@ -1104,18 +1160,18 @@ document.getElementById('modalSkipCancel').addEventListener('click',()=>{
 
 document.getElementById('modalSkipConfirm').addEventListener('click',()=>{
   document.getElementById('modalSkipOverlay').classList.remove('show');
-  const d = new Date(cycleStart);
-  d.setDate(d.getDate() - 1);
-  cycleStart = d.toISOString().slice(0,10);
-  store.set('cycleStart', cycleStart);
+  cycleOffset++;
+  store.set('cycleOffset', cycleOffset);
   refreshCurDay();
   updateHome();
 });
 
 function doStartCycle(){
   cycleStart=todayStr();
+  cycleOffset=0;
   progState={};
   store.set('cycleStart',cycleStart);
+  store.set('cycleOffset',cycleOffset);
   store.set('progState',progState);
   document.querySelectorAll('.ex-row.done').forEach(r=>r.classList.remove('done'));
   days.forEach((_,i)=>{
@@ -1257,7 +1313,7 @@ const phrases = [
 
 /* ── BACKUP / RESTORE ── */
 function exportData(){
-  const data = { progState, cycleStart, dailyState, streakData, historyData };
+  const data = { progState, cycleStart, cycleOffset, dailyState, streakData, historyData };
   const json = JSON.stringify(data, null, 2);
   const d = new Date();
   const filename = `training-backup-${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}.json`;
@@ -1286,6 +1342,8 @@ function importData(file){
         store.set('progState', data.progState);
       if(typeof data.cycleStart==='string' || data.cycleStart===null)
         store.set('cycleStart', data.cycleStart);
+      if(typeof data.cycleOffset==='number')
+        store.set('cycleOffset', data.cycleOffset);
       if(data.dailyState && Array.isArray(data.dailyState.reps))
         store.set('dailyState', data.dailyState);
       if(data.streakData && typeof data.streakData==='object')
@@ -1314,6 +1372,8 @@ function handleImport(event){
 refreshCurDay();
 updateHome();
 updateGlobalRing();
+const lastTab = store.get('lastTab','home');
+if(lastTab !== 'home') switchTab(lastTab);
 </script>
 </body>
 </html>
